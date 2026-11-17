@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hádanková aréna</title>
+<style>
+:root{--bg:#101827;--panel:#1b2940;--panel2:#243650;--text:#f4f7fb;--muted:#aebbd0;--accent:#ffc857;--green:#39c98a;--red:#ff647c}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(135deg,#101827,#182b43);color:var(--text);font:16px system-ui,-apple-system,Segoe UI,sans-serif;min-height:100vh}
+header{padding:18px 22px;border-bottom:1px solid #ffffff20;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+h1{margin:0;font-size:clamp(22px,4vw,34px);letter-spacing:.04em}h1 span{color:var(--accent)}.tag{color:var(--muted);font-size:13px}
+main{max-width:1100px;margin:24px auto;padding:0 16px}.card{background:#1b2940ee;border:1px solid #ffffff20;border-radius:18px;padding:20px;margin:14px 0;box-shadow:0 12px 32px #0003}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}.hidden{display:none!important}
+label{display:block;color:var(--muted);font-size:14px;margin:12px 0 6px}input,textarea,select{width:100%;padding:13px;border-radius:10px;border:1px solid #52647e;background:#101b2c;color:white;font:inherit}textarea{min-height:110px;resize:vertical}
+button{border:0;border-radius:11px;padding:13px 17px;font:700 15px system-ui;cursor:pointer;background:var(--accent);color:#182235}button.secondary{background:#344862;color:white}button.good{background:var(--green);color:#09291c}button.danger{background:var(--red);color:#310b13}button:disabled{opacity:.35;cursor:not-allowed}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.row>*{flex:1}.muted{color:var(--muted)}.big{font-size:clamp(24px,5vw,46px);font-weight:800;line-height:1.2}.question{font-size:clamp(25px,4vw,42px);font-weight:750;white-space:pre-wrap;min-height:90px}
+.teamgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}.team{padding:14px;border-radius:13px;background:var(--panel2);border-left:7px solid var(--teamcolor,#ffc857)}.team strong{display:block;font-size:18px}.rank{font-size:13px;color:var(--muted);margin-top:5px}
+.buzzer{width:100%;min-height:170px;font-size:clamp(28px,7vw,52px);background:var(--teamcolor,#ffc857);color:#101827;border-radius:20px;box-shadow:0 8px 0 #0004}.buzzer:active{transform:translateY(4px);box-shadow:0 4px 0 #0004}
+.status{padding:12px;border-radius:10px;background:#101b2c;color:var(--muted);margin:12px 0}.pill{display:inline-block;padding:5px 10px;border-radius:20px;background:#344862;font-size:12px}
+ol{padding-left:28px}li{padding:7px 0}.score{font-size:22px;font-weight:800;color:var(--accent)}
+footer{text-align:center;color:var(--muted);font-size:12px;padding:28px}
+a{color:var(--accent)}
+</style>
+</head>
+<body>
+<header><div><h1>HÁDANKOVÁ <span>ARÉNA</span></h1><div class="tag">Týmová soutěž • rychlé přihlášení • průběžné skóre</div></div><div class="pill" id="connection">Režim přípravy</div></header>
+<main>
+<section id="setup" class="card">
+<h2>Začít soutěž</h2>
+<p class="muted">Nejprve nastav připojení Firebase (návod je v přiloženém souboru README, případně v poznámce pod aplikací). Potom vytvoř místnost a připoj týmy.</p>
+<div class="grid">
+<div><label>Počet týmů</label><select id="teamCount"><option>4</option><option selected>6</option><option>8</option><option>10</option></select></div>
+<div><label>Název soutěže / třídy</label><input id="eventName" placeholder="Např. 7. A – Hádanková aréna"></div>
+</div>
+<div class="row" style="margin-top:16px"><button id="createBtn">Vytvořit soutěž</button><button class="secondary" id="demoBtn">Vyzkoušet ukázku na tomto zařízení</button></div>
+<div id="setupMsg" class="status">Pro sdílení mezi různými zařízeními je nutné doplnit vlastní bezplatnou Firebase konfiguraci.</div>
+</section>
+
+<section id="host" class="hidden">
+<div class="grid">
+<div class="card">
+<div class="row"><div><h2>Ovládání učitele</h2><span class="pill" id="roomLabel">Místnost —</span></div><button class="secondary" id="showProjector">Obrazovka projektoru</button></div>
+<label>Text hádanky</label><textarea id="questionInput" placeholder="Sem napiš hádanku…"></textarea>
+<div class="row" style="margin-top:10px"><button id="publishBtn">Zobrazit hádanku</button><button class="secondary" id="openBtn">Otevřít hlasování</button><button class="danger" id="closeBtn">Uzavřít hlasování</button></div>
+<div class="status" id="hostStatus">Čeká se na hádanku.</div>
+<div class="row"><button class="good" id="correctBtn">Odpověď správná – bod</button><button class="danger" id="wrongBtn">Odpověď špatná – další tým</button></div>
+<div class="row" style="margin-top:10px"><button class="secondary" id="nextBtn">Nová hádanka / reset pořadí</button><button class="secondary" id="resetScoresBtn">Vynulovat skóre</button></div>
+</div>
+<div class="card"><h2>Pořadí přihlášení</h2><ol id="hostOrder"><li class="muted">Zatím nikdo.</li></ol><h2>Skóre</h2><div id="hostScores" class="teamgrid"></div></div>
+</div>
+<div class="card"><h2>Připojení týmů</h2><p class="muted">Kód místnosti: <strong id="roomCodeBig"></strong>. Týmy otevřou adresu této aplikace, zvolí „Připojit tým“ a zadají kód.</p><div class="teamgrid" id="hostTeams"></div></div>
+</section>
+
+<section id="join" class="card hidden">
+<h2>Připojit tým</h2><label>Kód místnosti</label><input id="joinCode" maxlength="6" placeholder="Např. A7K2QX">
+<label>Název týmu</label><input id="joinName" placeholder="Např. Tygři">
+<button id="joinBtn">Připojit se</button><div id="joinMsg" class="status"></div>
+</section>
+
+<section id="team" class="card hidden">
+<div class="row"><div><h2 id="teamTitle">Tým</h2><span class="pill" id="teamRoom"></span></div><div class="score" id="teamScore">0 bodů</div></div>
+<div class="card" style="background:#101b2c"><div class="muted">AKTUÁLNÍ HÁDANKA</div><div class="question" id="teamQuestion">Čekáme, až učitel zobrazí hádanku…</div></div>
+<button class="buzzer" id="buzzBtn" disabled>PŘIHLÁSIT SE!</button>
+<div class="status" id="teamStatus">Zatím není otevřené hlasování.</div>
+</section>
+
+<section id="projector" class="hidden">
+<div class="card" style="text-align:center"><div class="pill" id="projectorEvent">Hádanková aréna</div><div class="question" id="projectorQuestion" style="margin:30px 0">Čekáme na první hádanku…</div><div class="status" id="projectorState">Hlasování není otevřené.</div></div>
+<div class="grid"><div class="card"><h2>Pořadí přihlášení</h2><ol id="projectorOrder"><li class="muted">Zatím nikdo.</li></ol></div><div class="card"><h2>Průběžné skóre</h2><div id="projectorScores" class="teamgrid"></div></div></div>
+</section>
+<div class="card" id="howto"><h3>Jak aplikaci používat</h3><ol class="muted"><li>Učitel vytvoří soutěž a otevře ovládací panel.</li><li>Každá skupina otevře stejnou webovou adresu na svém tabletu a připojí se kódem místnosti.</li><li>Učitel vloží hádanku a klikne na „Zobrazit hádanku“.</li><li>Po otevření hlasování se týmy přihlásí. Systém uchová pořadí všech přihlášení.</li><li>Po špatné odpovědi učitel označí tým jako vyřazený z aktuálního kola; další tým v pořadí může odpovídat.</li></ol><p class="muted"><strong>Poznámka:</strong> Tato ukázková verze obsahuje lokální demonstrační režim. Pro synchronizaci mezi školním počítačem a více iPady je potřeba doplnit Firebase projekt a aplikaci zveřejnit na webu.</p></div>
+</main><footer>HÁDANKOVÁ ARÉNA • školní týmová soutěž</footer>
+<script>
+const $=id=>document.getElementById(id);
+const colors=['#ffc857','#63d6c5','#ff7b8b','#8fa8ff','#c59cff','#a8dc75','#ffad66','#72c9ff','#f28fc8','#c6d27a'];
+let state={room:'',event:'',teams:[],question:'',open:false,order:[],eliminated:[],scores:{},demo:false,role:'',teamId:''};
+let demoTimer=null;
+function show(id){['setup','host','join','team','projector'].forEach(x=>$(x).classList.toggle('hidden',x!==id));$('howto').classList.toggle('hidden',id!=='setup');}
+function code(){return Math.random().toString(36).slice(2,8).toUpperCase();}
+function persist(){if(state.demo)localStorage.setItem('ha-demo',JSON.stringify(state));}
+function loadDemo(){let s=localStorage.getItem('ha-demo');if(s){try{return JSON.parse(s)}catch(e){}}return null}
+function teamCards(target){$(target).innerHTML=state.teams.map((t,i)=>`<div class="team" style="--teamcolor:${colors[i%colors.length]}"><strong>${t.name}</strong><div class="rank">${state.order.findIndex(x=>x.id===t.id)+1>0?'Pořadí: '+(state.order.findIndex(x=>x.id===t.id)+1):'Čeká'}</div><div class="score">${state.scores[t.id]||0} b.</div></div>`).join('');}
+function render(){
+ $('roomLabel').textContent='Místnost '+state.room;$('roomCodeBig').textContent=state.room;
+ $('hostStatus').textContent=state.open?'Hlasování je otevřené.':(state.question?'Hlasování je uzavřené.':'Čeká se na hádanku.');
+ $('hostOrder').innerHTML=state.order.length?state.order.map((x,i)=>`<li><strong>${x.name}</strong> ${state.eliminated.includes(x.id)?'<span class="muted">(již odpovídal/a)</span>':i===state.order.findIndex(y=>!state.eliminated.includes(y.id))?'<span class="pill">na řadě</span>':''}</li>`).join(''):'<li class="muted">Zatím nikdo.</li>';
+ $('projectorOrder').innerHTML=$('hostOrder').innerHTML;
+ teamCards('hostTeams');teamCards('hostScores');teamCards('projectorScores');
+ $('projectorQuestion').textContent=state.question||'Čekáme na první hádanku…';$('projectorEvent').textContent=state.event||'Hádanková aréna';
+ $('projectorState').textContent=state.open?'HLASOVÁNÍ OTEVŘENO':'Hlasování není otevřené.';
+ if(state.role==='team'){
+  $('teamQuestion').textContent=state.question||'Čekáme, až učitel zobrazí hádanku…';
+  $('teamScore').textContent=(state.scores[state.teamId]||0)+' bodů';
+  const submitted=state.order.some(x=>x.id===state.teamId);
+  $('buzzBtn').disabled=!state.open||submitted;
+  $('teamStatus').textContent=submitted?'Přihlášení zaznamenáno – pořadí: '+(state.order.findIndex(x=>x.id===state.teamId)+1):state.open?'Hlasování je otevřené. Zmáčkni tlačítko, až budeš znát odpověď.':'Zatím není otevřené hlasování.';
+ }
+ persist();
+}
+$('demoBtn').onclick=()=>{
+ state={room:code(),event:$('eventName').value||'Ukázková soutěž',teams:[],question:'',open:false,order:[],eliminated:[],scores:{},demo:true,role:'host',teamId:''};
+ for(let i=0;i<+$('teamCount').value;i++){let id='t'+i;state.teams.push({id,name:['Tygři','Orli','Lvi','Vlci','Medvědi','Rysi','Sokoli','Lišky','Jeleni','Bobři'][i]});state.scores[id]=0;}
+ $('connection').textContent='Ukázkový režim – jedno zařízení';show('host');render();
+};
+$('createBtn').onclick=()=>{$('setupMsg').textContent='Propojení mezi zařízeními zatím není nakonfigurováno. Zvol „Vyzkoušet ukázku“ nebo postupuj podle návodu k nastavení Firebase.';};
+$('publishBtn').onclick=()=>{state.question=$('questionInput').value.trim();state.open=false;state.order=[];state.eliminated=[];render();};
+$('openBtn').onclick=()=>{state.open=true;render();};
+$('closeBtn').onclick=()=>{state.open=false;render();};
+$('nextBtn').onclick=()=>{state.open=false;state.order=[];state.eliminated=[];$('questionInput').value='';state.question='';render();};
+$('correctBtn').onclick=()=>{let next=state.order.find(x=>!state.eliminated.includes(x.id));if(next){state.scores[next.id]=(state.scores[next.id]||0)+1;state.eliminated.push(next.id);}state.open=false;render();};
+$('wrongBtn').onclick=()=>{let next=state.order.find(x=>!state.eliminated.includes(x.id));if(next)state.eliminated.push(next.id);render();};
+$('resetScoresBtn').onclick=()=>{if(confirm('Opravdu vynulovat skóre všech týmů?')){state.teams.forEach(t=>state.scores[t.id]=0);render();}};
+$('showProjector').onclick=()=>{show('projector');render();};
+$('buzzBtn').onclick=()=>{if(!state.open||state.order.some(x=>x.id===state.teamId))return;state.order.push({id:state.teamId,name:state.teams.find(t=>t.id===state.teamId)?.name||'Tým'});render();};
+$('joinBtn').onclick=()=>{$('joinMsg').textContent='Připojení týmů bude dostupné po zapnutí sdílené Firebase databáze.';};
+$('joinCode').addEventListener('focus',()=>{});
+</script>
+</body></html>
